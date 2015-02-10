@@ -20,14 +20,11 @@ import ast
 def main():
     es = Elasticsearch()
 #    createIndex(es)
-    #avg = 238.354857757
     indexedDocuments = es.search(index='ap_dataset',body={"query": {"match_all": {}}}, size=84679)
-    #print "indexedDoc ",indexedDocuments['hits']['hits'][0]
     docIDs = [doc['_id'] for doc in indexedDocuments['hits']['hits']]
-    # (avg,dictOf{id : docLen})
     #docFreqAndAvg = avgDocLen(es , docIDs)
     avg = 247.806315615
-    #avg = 247.811
+    totalDocuments = 84769.0
     #avg = docFreqAndAvg[0]
     #docsLen = docFreqAndAvg[1]
     docLenFile = os.path.join(os.path.dirname(__file__), '/College/temp/HW1-IR/HW1/docLength.txt')
@@ -50,12 +47,10 @@ def main():
             else:
                 queryNo.append(line[:3])
     q.close()
-    #print "query NO ",queryNo
     queryCounter = -1
           
           
     es.put_script(lang='groovy', id='getTF', body={"script": "_index[field][term].tf()"})
-#     es.put_script(lang='groovy', id='getDF', body={"script": "_index[field][term].df()"})
             
     for currentLine in iter(f):
         queryCounter = queryCounter+1
@@ -72,16 +67,11 @@ def main():
             jm_tracker = 1
             laplace_tracker = 1
             processedText = processText(currentLine)
-            #print "1"
             print processedText
             for term in processedText.split():
-                #term = res.stem(term, 0 , (len(term)-1))
-                #term = res.stem(term, 0 , (len(term)-1))
-                scriptResult = es.search(index='ap_dataset',body={"query": {"function_score": {"query": {"match": {"text": term}},"functions": [{"script_score": {"script_id": "getTF","lang" : "groovy","params": {"term": term,"field": "text"}}}],"boost_mode": "replace"}},"size": 84769,"fields": ["docno"]})
+                scriptResult = es.search(index='ap_dataset',body={"query": {"function_score": {"query": {"match": {"text": term}},"functions": [{"script_score": {"script_id": "getTF","lang" : "groovy","params": {"term": term,"field": "text"}}}],"boost_mode": "replace"}},"size": totalDocuments,"fields": ["docno"]})
                 df = scriptResult['hits']['total']
-                #print "scriptResult: ",scriptResult
                 processedScriptResult = processScriptResult(scriptResult)
-                #print "processedScriptResult: ",processedScriptResult
                 for x in range(len(processedScriptResult)):
                     if(lm_laplace_tracker.has_key(processedScriptResult[x][0]) == False):
                         lm_laplace_tracker[processedScriptResult[x][0]] = 1
@@ -92,19 +82,15 @@ def main():
                     resultTDF = resultTDF + docsLen[processedScriptResult[x][0]]
                     resultTTF = resultTTF + processedScriptResult[x][1]
                        
-                #processedDFScriptResult = processDFScriptResult(scriptResultDF)
-                #in the form (id, tf, docno)
                 laplace_tracker = laplace_tracker + 1
                 jm_tracker = jm_tracker + 1
                 
                 for i in range(len(processedScriptResult)):    
-                    #print "reached here : "
                     docID = processedScriptResult[i][0]
                     tf = processedScriptResult[i][1]
                     tfwq = processedText.count(term)
-                    #return (id, word, okapiVal)
                     okapiResult =okapiTF(tf, docsLen[docID], avg) 
-                    okapiBM25Result = okapiBM25Cal(84679.0, df, tf, docsLen[docID], avg, tfwq)
+                    okapiBM25Result = okapiBM25Cal(totalDocuments, df, tf, docsLen[docID], avg, tfwq)
                     p_LaplaceResult = p_LaplaceCalc(tf, docsLen[docID])
                     jelinek_mercer = jelinek_mercerCalc(tf, docsLen[docID], resultTTF, resultTDF)
                     
@@ -128,10 +114,10 @@ def main():
                         
                     if(okapi.has_key(docID)):
                         okapi[docID] = okapi[docID] + okapiResult
-                        tfIDF[docID] = tfIDF[docID] + (okapiResult * math.log(84679.0/(df*1.0)))
+                        tfIDF[docID] = tfIDF[docID] + (okapiResult * math.log(totalDocuments/(df*1.0)))
                     else:
                         okapi[docID] = okapiResult
-                        tfIDF[docID] = (okapiResult * math.log(84679.0/(df*1.0)))
+                        tfIDF[docID] = (okapiResult * math.log(totalDocuments/(df*1.0)))
                         
                 for y in lm_laplace_tracker:
                     if(lm_laplace_tracker[y] != laplace_tracker):
@@ -149,21 +135,13 @@ def main():
         sorted_Jm_Smoothing = sorted(jm_smoothing.items(), key=operator.itemgetter(1), reverse = True)[:1000]
         
                      
-#        for id in range(len(sorted_tfIDF)):
-#            if(sorted_tfIDF[id][1] > 0):
-#                    tfIDFResultSet.append(sorted_tfIDF[id])
-                
-#        for id in range(len(sorted_Okapi)):
-#            if(sorted_Okapi[id][1] > 0):
-#                    okapiResultSet.append(sorted_Okapi[id])
-
-        #print "Okapi Result set: ",okapiResultSet
-        #print "TFIDF Result set: ",tfIDFResultSet
-#        createOutput(es, okapiResultSet,tfIDFResultSet, queryCounter, queryNo)
-        createOutput(es, sorted_Okapi,sorted_tfIDF,sorted_OkapiBM25,sorted_Lm_Laplace,sorted_Jm_Smoothing, queryCounter, queryNo)
-#         createTfIDFOutput(es, tfIDFResultSet, queryCounter, queryNo)
+        writeOutputToFile(es, '1_Okapi_Result.txt', sorted_Okapi, queryCounter, queryNo)
+        writeOutputToFile(es, '2_TFIDF_Result.txt', sorted_tfIDF, queryCounter, queryNo)
+        writeOutputToFile(es, '3_OkapiBM25_Result.txt', sorted_OkapiBM25, queryCounter, queryNo)
+        writeOutputToFile(es, '4_LM_Laplace_Result.txt', sorted_Lm_Laplace, queryCounter, queryNo)
+        writeOutputToFile(es, '5_JM_Smoothing_Result.txt', sorted_Jm_Smoothing, queryCounter, queryNo)
                  
-
+    
 def processScriptResult(searchResult):
     docIDs = [(doc['_id'], doc['_score'], doc['fields']['docno'])for doc in searchResult['hits']['hits']]
     return docIDs
@@ -180,97 +158,45 @@ def tfidfCalculate(okapiResult, totalDocs, docFreq, term, id):
         return (-1, term, 0)
 
 def okapiBM25Cal(D, df, tf, docLen, avg, tfwq):
-    bm25 = 0.0
     k1 = 1.2
     k2 = 100.0
     b = 0.75
-    D = D * 1.0
-    df = df * 1.0
-    tf = tf * 1.0
-    docLen = docLen * 1.0
-    avg = avg * 1.0
-    tfwq = tfwq * 1.0
     t1 = math.log((D+0.5)/(df+0.5))
-    t2 = (tf+ (k1*tf))/(tf+ (k1*((1-b) + (b*(docLen/(avg * 1.0))))))
-    t3 = (tfwq + (k2 * tfwq))/(tfwq+k2)
-    bm25 = t1 * t2 * t3 * 1.0
+    t2 = (tf+ (k1*tf*1.0))/(tf+ (k1*((1-b) + (b*(docLen/(avg * 1.0))))*1.0))
+    t3 = (tfwq + (k2 * tfwq*1.0))/((tfwq+k2)*1.0)
+    bm25 = t1 * t2 * t3
     return bm25
 
 def p_LaplaceCalc(tf, docLen):
     vocabSize = 178050
-    tf = tf * 1.0
-    docLen = docLen * 1.0
-    p_Laplace = (tf+1.0)/(docLen+vocabSize)
+    p_Laplace = (tf+1.0)/((docLen+vocabSize)*1.0)
     return p_Laplace
 
 def jelinek_mercerCalc(tf, docLen, resultTTF, resultTDF):
-    tf = tf * 1.0
-    docLen = docLen * 1.0
-    resultTDF = resultTDF * 1.0
-    resultTTF = resultTTF * 1.0
     smoother = 0.7
-    t1 = smoother * (tf/docLen)
-    t2 = (1-smoother) * (resultTTF/resultTDF)
+    t1 = smoother * (tf/docLen*1.0)
+    t2 = (1-smoother) * (resultTTF/resultTDF*1.0)
     jelinek_mercer = t1 + t2
     return jelinek_mercer
 
-def createOutput(es,okapiResultSet,tfIDFResultSet,sorted_OkapiBM25,sorted_Lm_Laplace, sorted_Jm_Smoothing, queryCounter, queryNo):
-    f = open('1_Okapi_Result.txt','a')
-    f2 = open('2_TFIDF_Result.txt','a')
-    f_BM25 = open('3_OkapiBM25_Result.txt','a')
-    f_lmLaplace = open('4_LM_Laplace_Result.txt','a')
-    f_jmSmoothing = open('5_JM_Smoothing_Result.txt','a')
-    count = 1
-    
-    for i in range(len(okapiResultSet)):
-        results = es.get(index='ap_dataset', id=str(okapiResultSet[i][0]), doc_type='document')
-        tfidf_results = es.get(index='ap_dataset', id=str(tfIDFResultSet[i][0]), doc_type='document')
-        okapiBM25_Results = es.get(index='ap_dataset', id=str(sorted_OkapiBM25[i][0]), doc_type='document')
-        LmLaplace_Results = es.get(index='ap_dataset', id=str(sorted_Lm_Laplace[i][0]), doc_type='document')
-        JmSmoothing_Results = es.get(index='ap_dataset', id=str(sorted_Jm_Smoothing[i][0]), doc_type='document')
-        
-        stri = str(queryNo[queryCounter])+" "+"Q0 "+str(results['_source']['docno'])+" "+str(count)+" "+str(okapiResultSet[i][1])+" Exp\n"
-        tfIDF_Result = str(queryNo[queryCounter])+" "+"Q0 "+str(tfidf_results['_source']['docno'])+" "+str(count)+" "+str(tfIDFResultSet[i][1])+" Exp\n"
-        BM25_Result = str(queryNo[queryCounter])+" "+"Q0 "+str(okapiBM25_Results['_source']['docno'])+" "+str(count)+" "+str(sorted_OkapiBM25[i][1])+" Exp\n"
-        LmLaplace_Result = str(queryNo[queryCounter])+" "+"Q0 "+str(LmLaplace_Results['_source']['docno'])+" "+str(count)+" "+str(sorted_Lm_Laplace[i][1])+" Exp\n"
-        JmSmoothing_Result = str(queryNo[queryCounter])+" "+"Q0 "+str(JmSmoothing_Results['_source']['docno'])+" "+str(count)+" "+str(sorted_Jm_Smoothing[i][1])+" Exp\n"
-        
-        f.write(stri)
-        f2.write(tfIDF_Result)
-        f_BM25.write(BM25_Result)
-        f_lmLaplace.write(LmLaplace_Result)
-        f_jmSmoothing.write(JmSmoothing_Result)
-        
-        count = count + 1
-        
+def writeOutputToFile(es, fileName, results, queryIndex, queryNumber):
+    f = open(fileName, 'a')
+    rank = 1
+    for i in range(len(results)):
+        documentNumbers = es.get(index='ap_dataset', id=str(results[i][0]), doc_type='document')
+        outputToWrite = str(queryNumber[queryIndex])+" "+"Q0 "+str(documentNumbers['_source']['docno'])+" "+str(rank)+" "+str(results[i][1])+" Exp\n"
+        f.write(outputToWrite)
+        rank += 1
     f.close()
-    f2.close()
-    f_BM25.close()
-    f_lmLaplace.close()
-    f_jmSmoothing.close()
-    
-# def createTfIDFOutput(es, tfIDFResultSet,queryCounter, queryNo):
-#     count2 = 1
-#     for i in range(len(tfIDFResultSet)):
-#         results = es.get(index='ap_dataset', id=str(tfIDFResultSet[i][0]), doc_type='document')
-#         stri = str(queryNo[queryCounter])+" "+"Q0 "+str(results['_source']['docno'])+" "+str(count)+" "+str(tfIDFResultSet[i][1])+" Exp\n"
-#         f2.write(stri)
-#         count = count + 1
-#     f2.close()
-    
+        
 def processText(currentLine):
-    currentLine = re.sub('[,"]','',currentLine)
-    currentLine = currentLine.replace("'","")
+    currentLine = re.sub('[,"\']','',currentLine)
     currentLine = currentLine.replace("-"," ")
     currentLine = currentLine[currentLine.index("."):]
     currentLine = currentLine[4:]
     currentLine = removeWords(3, currentLine)
     currentLine = removeStopWords(currentLine)
     currentLine = currentLine[:currentLine.rfind('.')]
-#     currentLine = re.sub('[,"-()]',' ',currentLine)
-#     currentLine = re.sub('[.]','',currentLine)
-    #currentLine = re.sub('[0123456789,"]','',currentLine)
-    currentLine = stemQuery(currentLine)
     currentLine = stemQuery(currentLine)
     currentLine = currentLine.strip()
     return currentLine
@@ -281,6 +207,7 @@ def stemQuery(currentLine):
     for word in currentLine.split():
         temp = temp +" "+ res.stem(word, 0 , (len(word)-1))
     return temp
+
 def removeStopWords(currentLine):
     filename = os.path.join(os.path.dirname(__file__), '/College/IR/elasticsearch-1.4.2/config/stoplist.txt')
     f = open(filename, "r")
@@ -310,21 +237,12 @@ def removeWords(num, currentLine):
 
 
 def okapiTF(tf, docLen,avg):
-    #if(tfwd != []):
-#         okapi_TF = []
         temp = 0.0
-        #docLen = findDocLen(docLength, tfwd[0][0])
-        #docLen = docLength[0][1]
         tf = tf * 1.0
         docLen = docLen * 1.0
         avg = avg * 1.0
         temp = tf/(tf + 0.5 + (1.5 * (docLen/avg)))
-#         okapi_TF = (docID, word, temp)
-#         if(okapi_TF == []):
-#             okapi_TF = (-1,word,0)
         return temp
-    #else:
-    #    return (-1,word,0)
     
 def findDocID(tfwd, word):
     tf_DocID = []
@@ -401,8 +319,6 @@ def avgDocLen(es , docs):
         else:
             j = 84679+1
         mtv = es.mtermvectors(index='ap_dataset', doc_type='document',ids=docs[i:j])
-        #count = count + 1
-        #print "@@@@@@@",count,"..."
         print "i,j",i,"...",j
         for doc in mtv['docs']:
             docFreq = 0
@@ -416,8 +332,6 @@ def avgDocLen(es , docs):
                 docFreqs[doc['_id']]=0
     temp = 0.0
     temp = sum(docFreqs.values())
-    #for i in range(len(docFreqs)):
-    #    temp += docFreqs[i][1]
     avg = temp/(len(docFreqs) * 1.0)
     dFs.close()
     print "avg : ",avg
@@ -462,7 +376,6 @@ def docFrequency(es, docs, df, word, id):
     if(docs['docs'][0]['term_vectors']!= {}):
         if word in docs['docs'][0]['term_vectors']['text']['terms']:
             df.append((id,word, docs['docs'][0]['term_vectors']['text']['terms'][word]['doc_freq']))
-            #print "DF :",df
     return df
 
 
