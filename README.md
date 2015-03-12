@@ -15,3 +15,6 @@ Models class does the following:
 Index class does the following:
 * Created an index out of 85000 documents without any external tools
 * Provided an interface to access the indexed documents to get values like term frequency, document frequency etc. This interface will act as replacement for the previously used ElasticSearch calls.
+
+Models are evaluated in Python. 
+Index is created using Java as file operations will be more faster than Python.
