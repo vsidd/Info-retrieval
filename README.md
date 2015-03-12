@@ -5,6 +5,7 @@ Implemented and compared retrieval systems using the following vector space mode
 * Okapi BM25
 * Unigram LM with Laplace Smoothing
 * Unigram LM with Jelinek-Mercer smoothing
+
 This project uses elasticsearch, a commercial-grade indexer.  
 
 Models class does the following:
