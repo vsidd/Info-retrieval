@@ -17,4 +17,4 @@ Index class does the following:
 * Provided an interface to access the indexed documents to get values like term frequency, document frequency etc. This interface will act as replacement for the previously used ElasticSearch calls.
 
 Models are evaluated in Python. 
-Index is created using Java as file operations will be more faster than Python.
+Index is created using Java as file operations will be more faster than Python. This class will be able to handle large number of documents and terms without using excessive memory or disk I/O.
