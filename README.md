@@ -9,7 +9,7 @@ Implemented and compared retrieval systems using the following vector space mode
 This project uses elasticsearch, a commercial-grade indexer.  
 
 Models class does the following:
-* Parses the corpus and index it with elasticsearch
+* Parses the entire corpus and index it with elasticsearch
 * Creates a query processor, which runs queries from an input file against all retrieval models
 
 Index class does the following:
