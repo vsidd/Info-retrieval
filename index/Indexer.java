@@ -28,12 +28,12 @@ import org.apache.commons.lang3.StringUtils;
 
 public class Indexer {
 
-	/**
+	/*
 	 * This class will create my own index from the given location that will
 	 * replace the ElasticSearch calls.
 	 * This class will be able to handle large number of documents and terms
 	 * without using excessive memory or disk I/O.
-	 */
+	 **/
 	private static int termIndex = 1;
 	private static int lineBeginning = 0;
 	private static int documentID = 1;
@@ -52,6 +52,7 @@ public class Indexer {
 	 * given location and then it will send it to the parser which will index only 1000 documents 
 	 * at any given time
 	 */
+	
 	public static void main(String[] args) {
 		Indexer indexer = new Indexer();
 		try {
@@ -149,6 +150,12 @@ public class Indexer {
 		}
 	}
 
+	
+	/**
+	 * Sets the inverted index for every 1000 documents so that 
+	 * large memory is not utilized and thus making this program
+	 * system memory independent
+	 */ 
 	public void setupInvertedIndex(){
 		try {
 			// de-serialize LinkedHashMaps
@@ -212,6 +219,12 @@ public class Indexer {
 		}
 	}
 
+	/**
+	 * Creates a catalog file that used for mapping terms and offset positions 
+	 * in the inverted index file
+	 * @param termOffsetMap  a map between term and its corresponding offset positions 
+	 *                       in the inverted index file
+	 */
 	private void createCatalogAndFullIndex(Map<String, ArrayList<Integer>> termOffsetMap) {
 		try{
 			System.out.println("Creating the catalog and final index files");
@@ -257,6 +270,14 @@ public class Indexer {
 		}
 	}
 
+	/**
+	 * Creates a partial inverted index that contains terms and DBlocks and returns the 
+	 * offset positions after creating the partial index
+	 * @param termOffsetMap  a map between term and its corresponding offset positions 
+	 *                       in the inverted index file
+	 * @param documentsList  contains the contents from the documents read
+	 * @return               term and offset map for a partial inverted index
+	 */
 	// tuple = (termid, docid, position). termDocBlock = <termid, <docId, dblock>>
 	private Map<String, ArrayList<Integer>> createInvertedIndex(Map<String, ArrayList<Integer>> termOffsetMap, StringBuilder documentsList) {
 		LinkedHashMap<String, LinkedHashMap<String, DBlock>> termDocBlock = new LinkedHashMap<String, LinkedHashMap<String, DBlock>>();
@@ -293,7 +314,14 @@ public class Indexer {
 	}
 
 
-
+/**
+ * Creates the partial term, DBlock inverted index and returns the updated term, offset map
+ * @param termOffsetMap  a map between term and its corresponding offset positions 
+ *                       in the inverted index file
+ * @param termDocBlock   a map that contains a string and another map that represents
+ * 						 term and its DBlock
+ * @return               term and offset map for a partial inverted index
+ */
 	private Map<String, ArrayList<Integer>> createTermDblockFile(Map<String, ArrayList<Integer>> termOffsetMap,	LinkedHashMap<String, LinkedHashMap<String, DBlock>> termDocBlock) {
 		try{
 			File invertedIndexFile = new File(invertedIndexFileLocation+"invertedIndex.txt");
@@ -331,7 +359,12 @@ public class Indexer {
 
 
 
-
+/**
+ * Converts a normal document to a tuple document
+ * @param file  The file that needs to be transformed from normal document
+ *              to tuple form
+ *              Tuple - (term_id, doc_id, position)
+ */
 	public void createTupleFile(File file){
 		File tupleFile = new File(localUrl+file.getName()+"TUPLE"+".txt");
 
@@ -374,6 +407,12 @@ public class Indexer {
 
 
 
+	/**
+	 * Converts the given docText to a tokenized form there by creating
+	 * a tuple file out of the given normal file
+	 * @param docText  The text that needs to be tokenized
+	 * @param bw       Writing the tokenized data to a file
+	 */
 	public void generateTokens(String docText, BufferedWriter bw){
 		{
 			try{
@@ -419,57 +458,7 @@ public class Indexer {
 
 	}
 
-	class DBlock{
-		String docID;
-		int tf;
-		int ttf;
-		StringBuilder positions = new StringBuilder();
-
-		DBlock(){
-			this.docID = "";
-			this.tf = 0;
-			this.ttf = 0;
-			this.positions = new StringBuilder();
-		}
-
-		DBlock(String docID, int tf, int ttf, String position){
-			this.docID = docID;
-			this.tf = tf;
-			this.ttf = ttf;
-			this.positions.append(position+" ");
-		}
-
-		void update(String position){
-			this.tf += 1;
-			this.positions.append(position+" ");
-		}
-
-		String getDocID(){
-			return docID;
-		}
-		int getTF(){
-			return tf;
-		}
-		int getTTF(){
-			return ttf;
-		}
-		StringBuilder getPositions(){
-			return positions;
-		}
-
-		void setDocID(String docID){
-			this.docID = docID;
-		}
-		void setPositions(StringBuilder positions){
-			this.positions = positions;
-		}
-		void setTF(int tf){
-			this.tf = tf;
-		}
-		void setTTF(int ttf){
-			this.ttf = ttf;
-		}
-	}
+	
 }
 
 
