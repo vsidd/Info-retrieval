@@ -13,8 +13,10 @@ Models class does the following:
 * Creates a query processor, which runs queries from an input file against all retrieval models
 
 Index class does the following:
-* Created an index out of 85000 documents without any external tools
-* Provided an interface to access the indexed documents to get values like term frequency, document frequency etc. This interface will act as replacement for the previously used ElasticSearch calls.
+* Creates an index out of 85000 documents without any external tools (like ElasticSearch)
 
-Models are evaluated in Python. 
-Index is created using Java as file operations will be more faster than Python. This class will be able to handle large number of documents and terms without using excessive memory or disk I/O.
+SidSearch class does the following:
+* Provides an interface to access the indexed documents to get values like term frequency, document frequency etc. This interface will act as replacement for the previously used ElasticSearch calls in the Models class thereby evaluating the retrieval models using my own index.
+
+Models class is written in Python. 
+Index is created in Java as file operations will be more faster than Python. This class will be able to handle large number of documents and terms without using excessive memory or disk I/O operations thereby making it system memory independent.
