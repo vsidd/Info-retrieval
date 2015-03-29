@@ -13,12 +13,17 @@ import heapq
 import time
 from elasticsearch import Elasticsearch
 import pickle
+import socket
 # import cProfile
 # import re
 # from line_profiler import LineProfiler
 
+socket.setdefaulttimeout(60)
+extensionsToIgnore = ['.jpg','.png','.svg','.pdf','.doc']
 
-extensionsToIgnore = ['.jpg','.png','.svg','.pdf']
+contentToCheck = ['apple','Apple','mac','Mac','retina','Retina','macintosh','Macintosh','smartphone','Smartphone','SmartPhone','pixel','Pixel',
+                  'steve','Steve','iphone','iPhone','IPhone','ipod','iPod','IPod','ipad','iPad','IPad','ios','iOS','IOS','ibook','iBook',
+                  'itunes','iTunes','macbook','MacBook','Macbook','imac','iMac','IMac','icloud','iCloud','ICloud','computer','Computer']
 
 class HW3:
 #     @profile  
@@ -42,9 +47,9 @@ class HW3:
         self.robotTxt = robotParser
         
         self.start_time = time.time()
-        self.outLinkFile = open('OutLink.txt', 'ab+')
-        self.inLinkFile = open('InLink.txt', 'ab+')
-        self.crawledPages = open('myfile','w')
+        self.outLinkFile = open('OutLinkSid.txt', 'ab+')
+        self.inLinkFile = open('InLinkSid.txt', 'ab+')
+        self.crawledPages = open('crawledLinks','w')
         
 #     @profile  
     def loadFrontier(self, SeedUrl):
@@ -60,7 +65,7 @@ class HW3:
         while self.currFrontier != [] or self.nextFrontier != []:
                 if(self.currFrontier == []) and (self.nextFrontier != []):
                     self.loadCurrentFrontier()
-                    
+                
                 record = heapq.heappop(self.currFrontier)
                 page = record[2]
                 self.outlinkMap[page] = set()
@@ -75,6 +80,14 @@ class HW3:
                     httpHeader = self.head(page)
                     pagesource=urllib2.urlopen(page)      # receive an object
                     s=pagesource.read()                   # the html page is got here
+                    
+                    tempSoup = BeautifulSoup(s)           # to check relevancy of crawl
+                    content = self.extractContent(tempSoup) 
+#                     pageContent = soup.get_text().encode('utf-8')
+                    if not any(keyword in content for keyword in contentToCheck):
+                        continue
+#                         print "keyword : ",keyword
+                
                     soup=BeautifulSoup(s)
                     title = soup.title.string
                 except:
@@ -83,13 +96,12 @@ class HW3:
                 self.currOutLinks = ""
                 self.loadNextFrontier(soup, page)
 
-                content = self.extractContent(soup) 
-                self.indexWebPage(content, page, unicode(soup), httpHeader, unicode(title), self.currOutLinks)
+                self.indexWebPage(content, page, unicode(soup), unicode(httpHeader), unicode(title), unicode(self.currOutLinks))
                 
                 i = i + 1
                 print "I : ",i
-                print "frontier length : ",len(self.nextFrontier)
-                if(i>=3):
+#                 print "frontier length : ",len(self.nextFrontier)
+                if(i>=5):
                     self.finalOperations()
                     break
 
@@ -158,15 +170,16 @@ class HW3:
                     self.nextFrontier[n]=self.changeToMap[i]
 
     def indexWebPage(self, content, url, rawHTML, httpHeader, title, outLinks):
-        es = Elasticsearch(['localhost:9201'])
-        es.index(index="1504_team_apple", doc_type="document", id=url,
+        es = Elasticsearch(['localhost:9200'])
+        es.index(index="test_team_apple_sid", doc_type="document", id=url,
                  body={
                        "HTTPheader": httpHeader,
                        "title": title,
                        "text": content,
                        "html_Source": rawHTML,
                        "out_links": outLinks,
-                       "in_links": ' 0'
+                       "in_links": ' 0',
+                       "author": 'Sid'
         })
     
             
@@ -176,10 +189,11 @@ class HW3:
         parsedURL = urlparse.urlparse(absURL)
         domainName = parsedURL.netloc.lower()
         scheme = parsedURL.scheme.lower()
-        if scheme is 'http':
+        if scheme == 'http':
             domainName = domainName.replace(':80','')
-        if scheme is 'https':
+        if scheme == 'https':
             domainName = domainName.replace(':443','')
+#             scheme = 'http'
         cleanURL = scheme+"://"+ domainName+ parsedURL.path.replace('//','/')
         
         return cleanURL
@@ -197,8 +211,27 @@ class HW3:
         
 crawl = HW3()
 crawl.loadFrontier('http://en.wikipedia.org/wiki/History_of_Apple_Inc.')
+# crawl.loadFrontier('http://www.webopedia.com/TERM/R/retina_display.html')
+
+
+crawl.loadFrontier('http://en.wikipedia.org/wiki/Apple_Inc.')
+crawl.loadFrontier('https://www.apple.com/')
+crawl.loadFrontier('https://developer.apple.com/')
 crawl.loadFrontier('http://en.wikipedia.org/wiki/Retina_Display')
-crawl.loadFrontier('http://www.webopedia.com/TERM/R/retina_display.html')
+# crawl.loadFrontier('http://en.wikipedia.org/wiki/History_of_Apple_Inc.')
+# 1. History of Apple
+# 2. http://en.wikipedia.org/wiki/Apple_Inc.
+# 3. https://www.apple.com/
+# 4. https://developer.apple.com/
+# 5. Unique URL
+
+# print crawl.urlCanonicalization("https://www.webopedia.com/TERM/R/retina_display.html", "")
+
+# crawl.loadFrontier('http://en.wikipedia.org/wiki/Beats_Music')
+
+# crawl.loadFrontier('http://web.archive.org/web/20080723144112/http:/www.fool.com/news/foth/2000/foth000918.htm')
+
+
 # crawl.loadFrontier('http://computer.howstuffworks.com/')
 crawl.crawler()
 # profile = LineProfiler(crawl.crawler())
