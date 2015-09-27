@@ -25,9 +25,3 @@ Models class is written in Python.
 Index class is written in Java as file operations will be more faster than Python. This class will be able to handle large number of documents and terms without using excessive memory or disk I/O operations thereby making it system memory independent.
 
 
-### Spam Classifier
-This program builds a spam classifier using machine learning and ElasticSearch.
-
-A dataset consisting of 75000 emails (both spam and ham) is split into two, 80% for training and 20% for testing.
-
-Two different approaches are followed to build the spam classifier model.
